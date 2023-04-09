@@ -3,51 +3,44 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
     steps:
       - name: Create .env file
-        env:
-          CIPHER_KEY: ${{ secrets.CIPHER_KEY }}
-          CIPHER_IV_KEY: ${{ secrets.CIPHER_IV_KEY }}
-          AUTHENTICATOR_TOKEN_DB_PASSWORD: ${{ secrets.AUTHENTICATOR_TOKEN_DB_PASSWORD }}
-          AUTHENTICATOR_ACCESS_TOKEN_SECRET: ${{ secrets.AUTHENTICATOR_ACCESS_TOKEN_SECRET }}
-          AUTHENTICATOR_REFRESH_TOKEN_SECRET: ${{ secrets.AUTHENTICATOR_REFRESH_TOKEN_SECRET }}
-          AUTHENTICATOR_RESET_TOKEN_SECRET: ${{ secrets.AUTHENTICATOR_RESET_TOKEN_SECRET }}
         run: |
           echo "BASE_DB_URL=mongodb://mongo/mre" > ${{ github.workspace }}/.env
-          echo "CIPHER_KEY=${{CIPHER_KEY}}" >> ${{ github.workspace }}/.env
-          echo "CIPHER_IV_KEY=${{CIPHER_IV_KEY}}" >> ${{ github.workspace }}/.env
-
+          echo "CIPHER_KEY=${{ secrets.CIPHER_KEY }}" >> ${{ github.workspace }}/.env
+          echo "CIPHER_IV_KEY=${{ secrets.CIPHER_IV_KEY }}" >> ${{ github.workspace }}/.env
           echo "GATEWAY_PORT=8080" >> ${{ github.workspace }}/.env
           echo "CORS_ENABLED=false" >> ${{ github.workspace }}/.env
           echo "GATEWAY_URL=http://localhost:${GATEWAY_PORT}/api/v2" >> ${{ github.workspace }}/.env
-
-          echo "AUTHENTICATOR_TOKEN_DB_PASSWORD=${{AUTHENTICATOR_TOKEN_DB_PASSWORD}}" >> ${{ github.workspace }}/.env
-          echo "AUTHENTICATOR_ACCESS_TOKEN_SECRET=${{AUTHENTICATOR_ACCESS_TOKEN_SECRET}}" >> ${{ github.workspace }}/.env
-          echo "AUTHENTICATOR_REFRESH_TOKEN_SECRET=${{AUTHENTICATOR_REFRESH_TOKEN_SECRET}}" >> ${{ github.workspace }}/.env
-          echo "AUTHENTICATOR_RESET_TOKEN_SECRET=${{AUTHENTICATOR_RESET_TOKEN_SECRET}}" >> ${{ github.workspace }}/.env
-
+          echo "AUTHENTICATOR_TOKEN_DB_PASSWORD=${{ secrets.AUTHENTICATOR_TOKEN_DB_PASSWORD }}" >> ${{ github.workspace }}/.env
+          echo "AUTHENTICATOR_ACCESS_TOKEN_SECRET=${{ secrets.AUTHENTICATOR_ACCESS_TOKEN_SECRET }}" >> ${{ github.workspace }}/.env
+          echo "AUTHENTICATOR_REFRESH_TOKEN_SECRET=${{ secrets.AUTHENTICATOR_REFRESH_TOKEN_SECRET }}" >> ${{ github.workspace }}/.env
+          echo "AUTHENTICATOR_RESET_TOKEN_SECRET=${{ secrets.AUTHENTICATOR_RESET_TOKEN_SECRET }}" >> ${{ github.workspace }}/.env
           echo "ALLOW_SENDING_EMAILS=false" >> ${{ github.workspace }}/.env
           echo "MAILGUN_API_KEY=" >> ${{ github.workspace }}/.env
           echo "MAILGUN_DOMAIN=" >> ${{ github.workspace }}/.env
           echo "EMAIL_FROM=" >> ${{ github.workspace }}/.env
           echo "EMAIL_REPLY_TO=" >> ${{ github.workspace }}/.env
           echo "EMAIL_BCC=" >> ${{ github.workspace }}/.env
-
           echo "DEMO_MODE=false" >> ${{ github.workspace }}/.env
           echo "RESTORE_DB=false" >> ${{ github.workspace }}/.env
-
           echo "DOMAIN_URL=http://localhost" >> ${{ github.workspace }}/.env
-
           echo "LANDLORD_BASE_PATH=/landlord" >> ${{ github.workspace }}/.env
           echo "LANDLORD_APP_URL=http://localhost:${GATEWAY_PORT}/landlord" >> ${{ github.workspace }}/.env
-
           echo "TENANT_BASE_PATH=/tenant" >> ${{ github.workspace }}/.env
           echo "TENANT_APP_URL=http://localhost:${GATEWAY_PORT}/tenant" >> ${{ github.workspace }}/.env
+
+      - name: Store .env file in cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.env
+          key: ${{ github.sha }}
+
   build:
     needs: prepare
     runs-on: ubuntu-latest
@@ -55,18 +48,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install Docker
+      - name: Restore .env file from cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.env
+          key: ${{ github.sha }}
+
+      - name: Install Docker and MRE
         run: |
-          sudo apt-get update
-          sudo apt-get install -y docker.io
-          sudo apt-get install -y docker-compose
+          sudo apt-get update && sudo apt-get install -y docker-compose
+          cd ${{ github.workspace }}
+          chmod +x mre
 
       - name: Build and produce Docker images (webapps, services)
         run: |
           cd ${{ github.workspace }}
-          chmod +x mre
           ./mre build
-
   test:
     runs-on: ubuntu-latest
     needs: build
@@ -74,11 +71,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Restore .env file from cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.env
+          key: ${{ github.sha }}
+
       - name: Install Docker and MRE
         run: |
-          sudo apt-get update
-          sudo apt-get install -y docker.io
-          sudo apt-get install -y docker-compose
+          sudo apt-get update && sudo apt-get install -y docker-compose
           cd ${{ github.workspace }}
           chmod +x mre
 
@@ -89,8 +90,12 @@ jobs:
 
       - name: Run tests
         run: |
-          cd e2e
           yarn
           yarn run cypress:ci
         env:
           DOCKER_HOST: tcp://127.0.0.1:2375
+
+      - name: Stop application
+        run: |
+          cd ${{ github.workspace }}
+          ./mre stop
