@@ -33,18 +33,22 @@ const loadEnv = (wd, runMode) => {
       runMode === 'prod' ? 'prod.env' : 'dev.env'
     ),
   });
-  dotenvExpand.expand(env); // expand env variables which reference env variable
+  dotenvExpand.expand(env); // expand env variables which reference other env variables
 };
 
 const runCommand = async (cmd, parameters = [], options = {}) => {
   let spinner;
-  if (options.waitLog) {
+  if (!options.ci && options.waitLog) {
     spinner = new Spinner(options.waitLog);
     spinner.start();
   }
   return new Promise((resolve, reject) => {
     const errors = [];
     try {
+      if (options.ci) {
+        process.env.CI = true;
+      }
+
       const shellCommand = spawn(cmd, parameters, {});
 
       shellCommand.stdout.on('data', (data) => {
@@ -53,23 +57,22 @@ const runCommand = async (cmd, parameters = [], options = {}) => {
         spinner?.start();
       });
       shellCommand.stderr.on('data', (data) => {
-        if (options.noErrorsOnStdErr) {
+        if (options.ci || options.logErrorsDuringExecution) {
           spinner?.stop();
+          // see https://github.com/docker/compose/issues/6078
+          // const noErrorsOnStdErr = true;
+          // if (noErrorsOnStdErr) {
           console.log(removeEndLineBreak(data.toString()));
-          spinner?.start();
-          return;
-        }
-
-        if (options.logErrorsDuringExecution) {
-          spinner?.stop();
-          console.error(chalk.red(removeEndLineBreak(data.toString())));
+          // } else {
+          //console.error(chalk.red(removeEndLineBreak(data.toString())));
+          // }
           spinner?.start();
         } else {
           errors.push(removeEndLineBreak(data.toString()));
         }
       });
       shellCommand.on('error', (data) => {
-        if (options.logErrorsDuringExecution) {
+        if (options.ci || options.logErrorsDuringExecution) {
           console.error(chalk.red(removeEndLineBreak(data.toString())));
         } else {
           errors.push(removeEndLineBreak(data.toString()));
@@ -89,7 +92,8 @@ const runCommand = async (cmd, parameters = [], options = {}) => {
       });
     } catch (error) {
       spinner?.stop();
-      console.error(chalk.red(error));
+      console.error(chalk.red(error.stack || error));
+      reject(1);
     }
   });
 };
@@ -97,7 +101,7 @@ const runCommand = async (cmd, parameters = [], options = {}) => {
 const runCompose = async (
   composeCmd,
   composeOptions = { runMode: 'dev' },
-  commandOptions = { logErrorsDuringExecution: false }
+  commandOptions = { ci: false, logErrorsDuringExecution: false }
 ) => {
   const prodComposeArgs = [
     '-f',
@@ -121,7 +125,7 @@ const runCompose = async (
       ...(composeOptions.runMode === 'prod' ? prodComposeArgs : devComposeArgs),
       ...composeCmd,
     ],
-    { ...commandOptions, noErrorsOnStdErr: true } // noErrorsOnStdErr see https://github.com/docker/compose/issues/6078
+    commandOptions
   );
 };
 

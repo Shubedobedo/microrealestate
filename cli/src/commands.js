@@ -15,190 +15,256 @@ const initDirectories = () => {
   }
 };
 
-const displayHeader = () => {
-  clear();
+const displayHeader = ({ ci = false }) => {
+  if (!ci) {
+    clear();
+    console.log(
+      chalk.white(
+        figlet.textSync('MicroRealEstate', {
+          horizontalLayout: 'full',
+        })
+      )
+    );
+  } else {
+    console.log(chalk.white('MicroRealEstate'));
+  }
+
   console.log(
     chalk.white(
-      figlet.textSync('MicroRealEstate', {
-        horizontalLayout: 'full',
-      })
-    )
-  );
-  console.log(
-    chalk.white(
-      'The application which helps the landlords to manage their property rents'
+      'The application that helps the landlords to manage their property rents'
     )
   );
   console.log('');
 };
 
-const build = async () => {
-  try {
-    await runCompose(
-      ['build', '--no-cache', '--force-rm', '--quiet'],
-      { runMode: 'prod' },
-      { waitLog: 'building containers...' }
-    );
-
-    console.log(chalk.green('build completed'));
-  } catch (error) {
-    console.error(chalk.red(error));
+const build = async ({ ci = false }) => {
+  const composeCmd = ['build', '--no-cache', '--force-rm'];
+  if (!ci) {
+    composeCmd.push('--quiet');
   }
+
+  await runCompose(
+    composeCmd,
+    { runMode: 'prod' },
+    {
+      ci,
+      waitLog: 'building containers...',
+    }
+  );
+
+  console.log(chalk.green('build completed'));
 };
 
-const start = async () => {
-  try {
-    initDirectories();
-    await runCompose(
-      ['up', '-d', '--force-recreate', '--remove-orphans'],
-      { runMode: 'prod' },
-      { waitLog: 'starting the application...' }
-    );
+const start = async ({ ci = false }) => {
+  initDirectories();
+  await runCompose(
+    ['up', '-d', '--force-recreate', '--remove-orphans'],
+    { runMode: 'prod' },
+    {
+      ci,
+      waitLog: 'starting the application...',
+    }
+  );
 
-    console.log(
-      chalk.green(
-        `Landlord front-end ready and accessible on ${
-          process.env.APP_URL || process.env.LANDLORD_APP_URL
-        }`
-      )
-    );
-    console.log(
-      chalk.green(
-        `Tenant front-end ready and accessible on ${process.env.TENANT_APP_URL}`
-      )
-    );
-  } catch (error) {
-    console.error(chalk.red(error));
-  }
+  console.log(
+    chalk.green(
+      `Landlord front-end ready and accessible on ${
+        process.env.APP_URL || process.env.LANDLORD_APP_URL
+      }`
+    )
+  );
+  console.log(
+    chalk.green(
+      `Tenant front-end ready and accessible on ${process.env.TENANT_APP_URL}`
+    )
+  );
 };
 
-const stop = async (runConfig = { runMode: 'prod' }) => {
-  try {
-    await runCompose(
-      ['rm', '--stop', '--force'],
-      { runMode: runConfig.runMode },
-      { waitLog: 'stopping current running application...' }
-    );
-  } catch (error) {
-    console.error(chalk.red(error));
-  }
+const stop = async ({ ci = false, runMode = 'prod' }) => {
+  await runCompose(
+    ['rm', '--stop', '--force'],
+    { runMode },
+    { ci, waitLog: 'stopping current running application...' }
+  );
 };
 
 const dev = async () => {
-  try {
-    initDirectories();
-    await runCompose(
-      ['up', '--build', '--force-recreate', '--remove-orphans', '--no-color'],
-      {
-        runMode: 'dev',
-      },
-      {
-        logErrorsDuringExecution: true,
-      }
-    );
-  } catch (error) {
-    console.error(chalk.red(error));
-  }
+  initDirectories();
+  await runCompose(
+    ['up', '--build', '--force-recreate', '--remove-orphans', '--no-color'],
+    {
+      runMode: 'dev',
+    },
+    {
+      logErrorsDuringExecution: true,
+    }
+  );
 };
 
 const status = async () => {
-  try {
-    await runCompose(
-      ['ps'],
-      {
-        runMode: 'prod',
-      },
-      {
-        logErrorsDuringExecution: true,
-      }
-    );
-  } catch (error) {
-    console.error(chalk.red(error));
-  }
+  await runCompose(
+    ['ps'],
+    {
+      runMode: 'prod',
+    },
+    {
+      logErrorsDuringExecution: true,
+    }
+  );
 };
 
 const config = async (runMode) => {
-  try {
-    await runCompose(
-      ['config'],
-      {
-        runMode,
-      },
-      {
-        logErrorsDuringExecution: true,
-      }
-    );
-  } catch (error) {
-    console.error(chalk.red(error));
-  }
+  await runCompose(
+    ['config'],
+    {
+      runMode,
+    },
+    {
+      logErrorsDuringExecution: true,
+    }
+  );
 };
 
 const restoreDB = async (backupFile) => {
   loadEnv();
-  try {
-    const connectionString = process.env.MONGO_URL || process.env.BASE_DB_URL;
-    const archiveFile = `/backup/${backupFile}`;
 
-    await runCompose(
-      [
-        'run',
-        'mongo',
-        'mongorestore',
-        '--uri',
-        connectionString,
-        '--drop',
-        '--gzip',
-        `--archive=${archiveFile}`,
-      ],
-      {},
-      {
-        logErrorsDuringExecution: true,
-        waitLog: 'restoring database...',
-      }
-    );
-  } catch (error) {
-    console.error(chalk.red(error));
-  }
+  const connectionString = process.env.MONGO_URL || process.env.BASE_DB_URL;
+  const archiveFile = `/backup/${backupFile}`;
+
+  await runCompose(
+    [
+      'run',
+      'mongo',
+      'mongorestore',
+      '--uri',
+      connectionString,
+      '--drop',
+      '--gzip',
+      `--archive=${archiveFile}`,
+    ],
+    {},
+    {
+      logErrorsDuringExecution: true,
+      waitLog: 'restoring database...',
+    }
+  );
 };
 
 const dumpDB = async () => {
   loadEnv();
-  try {
-    const connectionString = process.env.MONGO_URL || process.env.BASE_DB_URL;
-    const dbUrl = new URL(connectionString);
-    const dbName = dbUrl.pathname.slice(1);
-    const timeStamp = moment().format('YYYYMMDDHHmm');
-    const archiveFile = `/backup/${dbName}-${timeStamp}.dump`;
 
-    await runCompose(
-      [
-        'run',
-        'mongo',
-        'mongodump',
-        '--uri',
-        connectionString,
-        '--gzip',
-        `--archive=${archiveFile}`,
-      ],
-      {
-        root: true,
-      },
-      {
-        logErrorsDuringExecution: true,
-        waitLog: 'dumping database...',
-      }
-    );
-  } catch (error) {
-    console.error(chalk.red(error));
-  }
+  const connectionString = process.env.MONGO_URL || process.env.BASE_DB_URL;
+  const dbUrl = new URL(connectionString);
+  const dbName = dbUrl.pathname.slice(1);
+  const timeStamp = moment().format('YYYYMMDDHHmm');
+  const archiveFile = `/backup/${dbName}-${timeStamp}.dump`;
+
+  await runCompose(
+    [
+      'run',
+      'mongo',
+      'mongodump',
+      '--uri',
+      connectionString,
+      '--gzip',
+      `--archive=${archiveFile}`,
+    ],
+    {
+      root: true,
+    },
+    {
+      logErrorsDuringExecution: true,
+      waitLog: 'dumping database...',
+    }
+  );
 };
 
 const displayHelp = () => {
+  const commands = [
+    {
+      name: 'dev',
+      description: 'Start the application in development mode',
+    },
+    {
+      name: 'build',
+      description: 'Build the application for production',
+      options: [
+        {
+          name: '--ci',
+          description: 'Run in CI mode',
+        },
+      ],
+    },
+    {
+      name: 'start',
+      description:
+        'Start the application in production mode (build command has to be run first)',
+      options: [
+        {
+          name: '--ci',
+          description: 'run in CI mode',
+        },
+      ],
+    },
+    {
+      name: 'stop',
+      description: 'Stop the application running in production mode',
+      options: [
+        {
+          name: '--ci',
+          description: 'Run in CI mode',
+        },
+      ],
+    },
+    {
+      name: 'status',
+      description: 'Display the status of the application',
+    },
+    {
+      name: 'config',
+      description: 'Display the configuration of the application',
+    },
+    {
+      name: 'restoredb',
+      description:
+        'Restore the database from a backup file located in /backup. The application has to be started to run this command.',
+    },
+    {
+      name: 'dumpdb',
+      description:
+        'Dump the database to a backup file located in /backup. The application has to be started to run this command.',
+    },
+  ];
+
   console.log(
     chalk.white(
-      'Usage: mre [option...] {dev|build|status|start|stop|config|restoredb|dumpdb}'
+      `Usage: mre [option...] {${commands.map(({ name }) => name).join('|')}}`
     )
   );
+  console.log('');
+  console.log(chalk.white('Options:'));
+  console.log('');
+  console.log(
+    chalk.white(`  ${'-h, --help'.padEnd(20, ' ')}Display help for command`)
+  );
+  console.log('');
+  console.log(chalk.white('Commands:'));
+  console.log('');
+  commands.map((command) => {
+    // display the command name and description
+    console.log(
+      chalk.white(`  ${command.name.padEnd(20, ' ')}${command.description}`)
+    );
+
+    // display the options for each command
+    if (command.options) {
+      command.options.map((option) => {
+        console.log(
+          chalk.white(`    ${option.name.padEnd(20, ' ')}${option.description}`)
+        );
+      });
+    }
+  });
 };
 
 const askForEnvironmentVariables = (envConfig) => {
@@ -328,7 +394,26 @@ const askRunMode = () => {
   return inquirer.prompt(questions);
 };
 
-const askBackupFile = (backupFiles) => {
+const askBackupFile = () => {
+  const backupFiles = [];
+  try {
+    const files = fs.readdirSync(
+      path.resolve(process.execPath, '..', 'backup')
+    );
+    files
+      .filter((file) => file.endsWith('.dump'))
+      .forEach((file) => {
+        backupFiles.push(file);
+      });
+  } catch (error) {
+    console.error(chalk.red(error.stack || error));
+  }
+
+  if (backupFiles.length === 0) {
+    console.error(chalk.red('No dump files found in the backup directory'));
+    return;
+  }
+
   const questions = [
     {
       name: 'backupFile',
