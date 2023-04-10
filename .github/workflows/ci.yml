@@ -14,9 +14,9 @@ jobs:
           echo "BASE_DB_URL=mongodb://mongo/mre" > ${{ github.workspace }}/.env
           echo "CIPHER_KEY=${{ secrets.CIPHER_KEY }}" >> ${{ github.workspace }}/.env
           echo "CIPHER_IV_KEY=${{ secrets.CIPHER_IV_KEY }}" >> ${{ github.workspace }}/.env
-          echo "GATEWAY_PORT=2375" >> ${{ github.workspace }}/.env
+          echo "GATEWAY_PORT=8080" >> ${{ github.workspace }}/.env
           echo "CORS_ENABLED=false" >> ${{ github.workspace }}/.env
-          echo "GATEWAY_URL=http://127.0.0.1:${GATEWAY_PORT}/api/v2" >> ${{ github.workspace }}/.env
+          echo "GATEWAY_URL=http://localhost:${GATEWAY_PORT}/api/v2" >> ${{ github.workspace }}/.env
           echo "AUTHENTICATOR_TOKEN_DB_PASSWORD=${{ secrets.AUTHENTICATOR_TOKEN_DB_PASSWORD }}" >> ${{ github.workspace }}/.env
           echo "AUTHENTICATOR_ACCESS_TOKEN_SECRET=${{ secrets.AUTHENTICATOR_ACCESS_TOKEN_SECRET }}" >> ${{ github.workspace }}/.env
           echo "AUTHENTICATOR_REFRESH_TOKEN_SECRET=${{ secrets.AUTHENTICATOR_REFRESH_TOKEN_SECRET }}" >> ${{ github.workspace }}/.env
@@ -29,11 +29,11 @@ jobs:
           echo "EMAIL_BCC=" >> ${{ github.workspace }}/.env
           echo "DEMO_MODE=false" >> ${{ github.workspace }}/.env
           echo "RESTORE_DB=false" >> ${{ github.workspace }}/.env
-          echo "DOMAIN_URL=http://127.0.0.1" >> ${{ github.workspace }}/.env
+          echo "DOMAIN_URL=http://localhost" >> ${{ github.workspace }}/.env
           echo "LANDLORD_BASE_PATH=/landlord" >> ${{ github.workspace }}/.env
-          echo "LANDLORD_APP_URL=http://127.0.0.1:${GATEWAY_PORT}/landlord" >> ${{ github.workspace }}/.env
+          echo "LANDLORD_APP_URL=http://localhost:${GATEWAY_PORT}/landlord" >> ${{ github.workspace }}/.env
           echo "TENANT_BASE_PATH=/tenant" >> ${{ github.workspace }}/.env
-          echo "TENANT_APP_URL=http://127.0.0.1:${GATEWAY_PORT}/tenant" >> ${{ github.workspace }}/.env
+          echo "TENANT_APP_URL=http://localhost:${GATEWAY_PORT}/tenant" >> ${{ github.workspace }}/.env
 
       - name: Store .env file in cache
         uses: actions/cache@v3
@@ -48,24 +48,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Restore .env file from cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ github.workspace }}/.env
-          key: ${{ github.sha }}
-
       - name: Install Docker and MRE
         run: |
           sudo apt-get update && sudo apt-get install -y docker-compose
           cd ${{ github.workspace }}
           chmod +x mre
 
+      - name: Restore .env file from cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.env
+          key: ${{ github.sha }}
+
       - name: Build and produce Docker images (webapps, services)
         run: |
           cd ${{ github.workspace }}
           ./mre build --ci
 
-      - name: Store Docker images in cache
+      - name: Compress Docker images
         run: |
           mkdir -p ${{ github.workspace }}/docker-images
           cd ${{ github.workspace }}/docker-images
@@ -77,6 +77,12 @@ jobs:
           docker save -o authenticator.tar mre/authenticator
           docker save -o gateway.tar mre/gateway
 
+      - name: Store Docker images in cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/docker-images
+          key: ${{ github.sha }}
+
   test:
     runs-on: ubuntu-latest
     needs: build
@@ -84,13 +90,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Restore .env file from cache
+      - name: Install Docker and MRE
+        run: |
+          sudo apt-get update && sudo apt-get install -y docker-compose
+          cd ${{ github.workspace }}
+          chmod +x mre
+
+      - name: Restore .env file and docker images from cache
         uses: actions/cache@v3
         with:
-          path: ${{ github.workspace }}/.env
+          path: |
+            ${{ github.workspace }}/.env
+            ${{ github.workspace }}/docker-images
           key: ${{ github.sha }}
 
-      - name: Restore Docker images from cache
+      - name: Load Docker images from cache
         run: |
           cd ${{ github.workspace }}/docker-images
           docker load -i landlord-frontend.tar
@@ -101,23 +115,16 @@ jobs:
           docker load -i authenticator.tar
           docker load -i gateway.tar
 
-      - name: Install Docker and MRE
-        run: |
-          sudo apt-get update && sudo apt-get install -y docker-compose
-          cd ${{ github.workspace }}
-          chmod +x mre
-
       - name: Start Application (webapps, services, databases)
         run: |
           cd ${{ github.workspace }}
           ./mre start --ci
+          ./mre status
 
       - name: Run tests
         run: |
           yarn
           yarn run e2e:ci
-        env:
-          DOCKER_HOST: tcp://127.0.0.1:2375
 
       - name: Stop application
         run: |
