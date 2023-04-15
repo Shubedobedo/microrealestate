@@ -20,18 +20,30 @@ const {
 } = require('./commands');
 const { parseEnv } = require('./utils');
 
-const argv = minimist(process.argv.slice(2));
-
-const Main = async () => {
-  process.on('SIGINT', () => {
-    // do nothing on SIGINT to let the child process (docker-compose) to handle the signal
-  });
-
+function getArgs() {
+  const argv = minimist(process.argv.slice(2));
   const command = argv._.length ? argv._[0] : '';
   const helpArg = argv.h || argv.help;
   const ciArg = !!argv.ci;
+  const serviceArg = argv.service || argv.s;
 
-  displayHeader({ ci: ciArg });
+  // checks that ciArg is passed only with the build and start commands
+  if (!['build', 'start'].includes(command) && ciArg) {
+    console.error(
+      chalk.red(
+        'The --ci option is only available with the build and start commands'
+      )
+    );
+    process.exit(1);
+  }
+
+  // checks that serviceArg is passed only with the build command
+  if (command !== 'build' && serviceArg) {
+    console.error(
+      chalk.red('The --service option is only available with the build command')
+    );
+    process.exit(1);
+  }
 
   if (
     ![
@@ -43,12 +55,33 @@ const Main = async () => {
       'config',
       'restoredb',
       'dumpdb',
-    ].includes(command) ||
-    helpArg
+    ].includes(command)
   ) {
     displayHelp();
-    return process.exit(helpArg ? 0 : 1);
+    return process.exit(1);
   }
+
+  return {
+    command,
+    helpArg,
+    ciArg,
+    serviceArg,
+  };
+}
+
+async function main() {
+  process.on('SIGINT', () => {
+    // do nothing on SIGINT to let the child process (docker-compose) to handle the signal
+  });
+
+  const { command, helpArg, ciArg, serviceArg } = getArgs();
+
+  if (helpArg) {
+    displayHelp();
+    return process.exit(0);
+  }
+
+  displayHeader({ ci: ciArg });
 
   if (!ciArg) {
     let envConfig = null;
@@ -70,7 +103,7 @@ const Main = async () => {
     switch (command) {
       case 'build':
         await stop({ ci: ciArg });
-        await build({ ci: ciArg });
+        await build({ ci: ciArg, service: serviceArg });
         break;
       case 'start':
         await start({ ci: ciArg });
@@ -105,6 +138,6 @@ const Main = async () => {
     process.exit(1);
   }
   process.exit(0);
-};
+}
 
-Main();
+main();

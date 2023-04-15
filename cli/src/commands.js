@@ -37,10 +37,14 @@ const displayHeader = ({ ci = false }) => {
   console.log('');
 };
 
-const build = async ({ ci = false }) => {
+const build = async ({ ci = false, service = 'all' }) => {
   const composeCmd = ['build', '--no-cache', '--force-rm'];
   if (!ci) {
     composeCmd.push('--quiet');
+  }
+
+  if (service !== 'all') {
+    composeCmd.push(service);
   }
 
   await runCompose(
@@ -192,6 +196,10 @@ const displayHelp = () => {
         {
           name: '--ci',
           description: 'Run in CI mode',
+        },
+        {
+          name: '--service',
+          description: 'Build only one service',
         },
       ],
     },
