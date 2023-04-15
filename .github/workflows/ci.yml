@@ -35,308 +35,108 @@ jobs:
           echo "TENANT_BASE_PATH=/tenant" >> ${{ github.workspace }}/.env
           echo "TENANT_APP_URL=http://localhost:${GATEWAY_PORT}/tenant" >> ${{ github.workspace }}/.env
 
-      - name: Create docker-images directory
-        run: mkdir -p ${{ github.workspace }}/docker-images
-
-      - name: Store .env file and docker-images directory in cache
+      - name: Store .env file in cache
         uses: actions/cache/save@v3
         with:
           path: |
             ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-env
 
-  build_service_emailer:
+  build_emailer:
     runs-on: ubuntu-latest
     needs: prepare
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Docker and MRE
-        run: |
-          sudo apt-get update && sudo apt-get install -y docker-compose
-          cd ${{ github.workspace }}
-          chmod +x mre
-
-      - name: Restore .env file and docker images from cache
-        uses: actions/cache/restore@v3
+      - name: Build and produce Docker image
+        uses: ./.github/actions/buildservice
         with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
+          service: emailer
 
-      - name: Build and produce Docker images (webapps, services)
-        run: |
-          cd ${{ github.workspace }}
-          ./mre build --ci --service emailer
-
-      - name: Compress Docker images
-        run: |
-          mkdir -p ${{ github.workspace }}/docker-images
-          cd ${{ github.workspace }}/docker-images
-          docker save -o emailer.tar mre/emailer
-
-      - name: Store emailer.tar in docker-images directory in cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
-
-  build_service_api:
+  build_api:
     runs-on: ubuntu-latest
     needs: prepare
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Docker and MRE
-        run: |
-          sudo apt-get update && sudo apt-get install -y docker-compose
-          cd ${{ github.workspace }}
-          chmod +x mre
-
-      - name: Restore .env file and docker images from cache
-        uses: actions/cache/restore@v3
+      - name: Build and produce Docker image
+        uses: ./.github/actions/buildservice
         with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
+          service: api
 
-      - name: Build and produce Docker images (webapps, services)
-        run: |
-          cd ${{ github.workspace }}
-          ./mre build --ci --service api
-
-      - name: Compress Docker images
-        run: |
-          mkdir -p ${{ github.workspace }}/docker-images
-          cd ${{ github.workspace }}/docker-images
-          docker save -o api.tar mre/api
-
-      - name: Store api.tar in docker-images directory in cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
-
-  build_service_authenticator:
+  build_authenticator:
     runs-on: ubuntu-latest
     needs: prepare
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Docker and MRE
-        run: |
-          sudo apt-get update && sudo apt-get install -y docker-compose
-          cd ${{ github.workspace }}
-          chmod +x mre
-
-      - name: Restore .env file and docker images from cache
-        uses: actions/cache/restore@v3
+      - name: Build and produce Docker image
+        uses: ./.github/actions/buildservice
         with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
+          service: authenticator
 
-      - name: Build and produce Docker images (webapps, services)
-        run: |
-          cd ${{ github.workspace }}
-          ./mre build --ci --service authenticator
-
-      - name: Compress Docker images
-        run: |
-          mkdir -p ${{ github.workspace }}/docker-images
-          cd ${{ github.workspace }}/docker-images
-          docker save -o authenticator.tar mre/authenticator
-
-      - name: Store authenticator.tar in docker-images directory in cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
-
-  build_service_gateway:
+  build_gateway:
     runs-on: ubuntu-latest
     needs: prepare
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Docker and MRE
-        run: |
-          sudo apt-get update && sudo apt-get install -y docker-compose
-          cd ${{ github.workspace }}
-          chmod +x mre
-
-      - name: Restore .env file and docker images from cache
-        uses: actions/cache/restore@v3
+      - name: Build and produce Docker image
+        uses: ./.github/actions/buildservice
         with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
+          service: gateway
 
-      - name: Build and produce Docker images (webapps, services)
-        run: |
-          cd ${{ github.workspace }}
-          ./mre build --ci --service gateway
-
-      - name: Compress Docker images
-        run: |
-          mkdir -p ${{ github.workspace }}/docker-images
-          cd ${{ github.workspace }}/docker-images
-          docker save -o gateway.tar mre/gateway
-
-      - name: Store gateway.tar in docker-images directory in cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
-
-  build_service_tenant_frontend:
+  build_tenant_frontend:
     runs-on: ubuntu-latest
     needs: prepare
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Docker and MRE
-        run: |
-          sudo apt-get update && sudo apt-get install -y docker-compose
-          cd ${{ github.workspace }}
-          chmod +x mre
-
-      - name: Restore .env file and docker images from cache
-        uses: actions/cache/restore@v3
+      - name: Build and produce Docker image
+        uses: ./.github/actions/buildservice
         with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
+          service: tenant-frontend
 
-      - name: Build and produce Docker images (webapps, services)
-        run: |
-          cd ${{ github.workspace }}
-          ./mre build --ci --service tenant-frontend
-
-      - name: Compress Docker images
-        run: |
-          mkdir -p ${{ github.workspace }}/docker-images
-          cd ${{ github.workspace }}/docker-images
-          docker save -o tenant-frontend.tar mre/tenant-frontend
-
-      - name: Store tenant-frontend.tar in docker-images directory in cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
-
-  build_service_landlord_frontend:
+  build_landlord_frontend:
     runs-on: ubuntu-latest
     needs: prepare
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Docker and MRE
-        run: |
-          sudo apt-get update && sudo apt-get install -y docker-compose
-          cd ${{ github.workspace }}
-          chmod +x mre
-
-      - name: Restore .env file and docker images from cache
-        uses: actions/cache/restore@v3
+      - name: Build and produce Docker image
+        uses: ./.github/actions/buildservice
         with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
+          service: landlord-frontend
 
-      - name: Build and produce Docker images (webapps, services)
-        run: |
-          cd ${{ github.workspace }}
-          ./mre build --ci --service landlord-frontend
-
-      - name: Compress Docker images
-        run: |
-          mkdir -p ${{ github.workspace }}/docker-images
-          cd ${{ github.workspace }}/docker-images
-          docker save -o landlord-frontend.tar mre/landlord-frontend
-
-      - name: Store landlord-frontend.tar in docker-images directory in cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
-
-  build_service_pdfgenerator:
+  build_pdfgenerator:
     runs-on: ubuntu-latest
     needs: prepare
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Docker and MRE
-        run: |
-          sudo apt-get update && sudo apt-get install -y docker-compose
-          cd ${{ github.workspace }}
-          chmod +x mre
-
-      - name: Restore .env file and docker images from cache
-        uses: actions/cache/restore@v3
+      - name: Build and produce Docker image
+        uses: ./.github/actions/buildservice
         with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
-
-      - name: Build and produce Docker images (webapps, services)
-        run: |
-          cd ${{ github.workspace }}
-          ./mre build --ci --service pdfgenerator
-
-      - name: Compress Docker images
-        run: |
-          mkdir -p ${{ github.workspace }}/docker-images
-          cd ${{ github.workspace }}/docker-images
-          docker save -o pdfgenerator.tar mre/pdfgenerator
-
-      - name: Store pdfgenerator.tar in docker-images directory in cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
+          service: pdfgenerator
 
   test:
     runs-on: ubuntu-latest
     needs:
       [
-        build_service_api,
-        build_service_emailer,
-        build_service_pdfgenerator,
-        build_service_authenticator,
-        build_service_gateway,
-        build_service_landlord_frontend,
-        build_service_tenant_frontend,
+        build_api,
+        build_emailer,
+        build_pdfgenerator,
+        build_authenticator,
+        build_gateway,
+        build_landlord_frontend,
+        build_tenant_frontend,
       ]
 
     steps:
@@ -349,22 +149,55 @@ jobs:
           cd ${{ github.workspace }}
           chmod +x mre
 
-      - name: Restore .env file and docker images from cache
+      - name: Restore .env file from cache
         uses: actions/cache/restore@v3
         with:
-          path: |
-            ${{ github.workspace }}/.env
-            ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
+          path: ${{ github.workspace }}/.env
+          key: ${{ github.sha }}-env
 
-      # list files in cache
-      - name: List files in cache
+      - name: Restore gateway image from cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ github.workspace }}/gateway.tar
+          key: ${{ github.sha }}-gateway
+      - name: Restore emailer image from cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ github.workspace }}/emailer.tar
+          key: ${{ github.sha }}-emailer
+      - name: Restore pdfgenerator image from cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ github.workspace }}/pdfgenerator.tar
+          key: ${{ github.sha }}-pdfgenerator
+      - name: Restore authenticator image from cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ github.workspace }}/authenticator.tar
+          key: ${{ github.sha }}-authenticator
+      - name: Restore api image from cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ github.workspace }}/api.tar
+          key: ${{ github.sha }}-api
+      - name: Restore landlord-frontend image from cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ github.workspace }}/landlord-frontend.tar
+          key: ${{ github.sha }}-landlord-frontend
+      - name: Restore tenant-frontend image from cache
+        uses: actions/cache/restore@v3
+        with:
+          path: ${{ github.workspace }}/tenant-frontend.tar
+          key: ${{ github.sha }}-tenant-frontend
+
+      - name: List files in workspace
         run: |
-          ls -la ${{ github.workspace }}/docker-images
+          ls -la ${{ github.workspace }}
 
       - name: Load Docker images from cache
         run: |
-          cd ${{ github.workspace }}/docker-images
+          cd ${{ github.workspace }}
           docker load -i landlord-frontend.tar
           docker load -i tenant-frontend.tar
           docker load -i pdfgenerator.tar

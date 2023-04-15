@@ -1,0 +1,39 @@
+name: 'Build service'
+inputs:
+  service:
+    description: 'Name of the service'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Docker and MRE
+      shell: bash
+      run: |
+        sudo apt-get update && sudo apt-get install -y docker-compose
+        cd ${{ github.workspace }}
+        chmod +x mre
+
+    - name: Restore .env file from cache
+      uses: actions/cache/restore@v3
+      with:
+        path: |
+          ${{ github.workspace }}/.env
+        key: ${{ github.sha }}-env
+
+    - name: Build and produce the docker image
+      shell: bash
+      run: |
+        cd ${{ github.workspace }}
+        ./mre build --ci --service ${{ inputs.service }}
+
+    - name: Compress the docker image
+      shell: bash
+      run: |
+        cd ${{ github.workspace }}
+        docker save -o ${{ inputs.service }}.tar mre/${{ inputs.service }}
+
+    - name: Store the compressed docker image in cache
+      uses: actions/cache/save@v3
+      with:
+        path: ${{ github.workspace }}/${{ inputs.service }}.tar
+        key: ${{ github.sha }}-${{ inputs.service }}
