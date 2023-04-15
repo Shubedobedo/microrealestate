@@ -35,10 +35,15 @@ jobs:
           echo "TENANT_BASE_PATH=/tenant" >> ${{ github.workspace }}/.env
           echo "TENANT_APP_URL=http://localhost:${GATEWAY_PORT}/tenant" >> ${{ github.workspace }}/.env
 
-      - name: Store .env file in cache
+      - name: Create docker-images directory
+        run: mkdir -p ${{ github.workspace }}/docker-images
+
+      - name: Store .env file and docker-images directory in cache
         uses: actions/cache@v3
         with:
-          path: ${{ github.workspace }}/.env
+          path: |
+            ${{ github.workspace }}/.env
+            ${{ github.workspace }}/docker-images
           key: ${{ github.sha }}
 
   build:
@@ -54,10 +59,12 @@ jobs:
           cd ${{ github.workspace }}
           chmod +x mre
 
-      - name: Restore .env file from cache
+      - name: Restore .env file and docker images from cache
         uses: actions/cache@v3
         with:
-          path: ${{ github.workspace }}/.env
+          path: |
+            ${{ github.workspace }}/.env
+            ${{ github.workspace }}/docker-images
           key: ${{ github.sha }}
 
       - name: Build and produce Docker images (webapps, services)
@@ -76,12 +83,6 @@ jobs:
           docker save -o emailer.tar mre/emailer
           docker save -o authenticator.tar mre/authenticator
           docker save -o gateway.tar mre/gateway
-
-      - name: Store Docker images in cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ github.workspace }}/docker-images
-          key: ${{ github.sha }}
 
   test:
     runs-on: ubuntu-latest
