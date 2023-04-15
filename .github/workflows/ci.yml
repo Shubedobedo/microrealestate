@@ -301,6 +301,11 @@ jobs:
             ${{ github.workspace }}/docker-images
           key: ${{ github.sha }}
 
+      # list files in cache
+      - name: List files in cache
+        run: |
+          ls -la ${{ github.workspace }}/docker-images
+
       - name: Load Docker images from cache
         run: |
           cd ${{ github.workspace }}/docker-images
