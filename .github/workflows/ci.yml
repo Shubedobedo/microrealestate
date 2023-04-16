@@ -16,7 +16,7 @@ jobs:
           echo "CIPHER_IV_KEY=${{ secrets.CIPHER_IV_KEY }}" >> ${{ github.workspace }}/.env
           echo "GATEWAY_PORT=8080" >> ${{ github.workspace }}/.env
           echo "CORS_ENABLED=false" >> ${{ github.workspace }}/.env
-          echo "GATEWAY_URL=http://localhost:${GATEWAY_PORT}/api/v2" >> ${{ github.workspace }}/.env
+          echo "GATEWAY_URL=http://localhost:8080/api/v2" >> ${{ github.workspace }}/.env
           echo "AUTHENTICATOR_TOKEN_DB_PASSWORD=${{ secrets.AUTHENTICATOR_TOKEN_DB_PASSWORD }}" >> ${{ github.workspace }}/.env
           echo "AUTHENTICATOR_ACCESS_TOKEN_SECRET=${{ secrets.AUTHENTICATOR_ACCESS_TOKEN_SECRET }}" >> ${{ github.workspace }}/.env
           echo "AUTHENTICATOR_REFRESH_TOKEN_SECRET=${{ secrets.AUTHENTICATOR_REFRESH_TOKEN_SECRET }}" >> ${{ github.workspace }}/.env
@@ -31,9 +31,9 @@ jobs:
           echo "RESTORE_DB=false" >> ${{ github.workspace }}/.env
           echo "DOMAIN_URL=http://localhost" >> ${{ github.workspace }}/.env
           echo "LANDLORD_BASE_PATH=/landlord" >> ${{ github.workspace }}/.env
-          echo "LANDLORD_APP_URL=http://localhost:${GATEWAY_PORT}/landlord" >> ${{ github.workspace }}/.env
+          echo "LANDLORD_APP_URL=http://localhost:8080/landlord" >> ${{ github.workspace }}/.env
           echo "TENANT_BASE_PATH=/tenant" >> ${{ github.workspace }}/.env
-          echo "TENANT_APP_URL=http://localhost:${GATEWAY_PORT}/tenant" >> ${{ github.workspace }}/.env
+          echo "TENANT_APP_URL=http://localhost:8080/tenant" >> ${{ github.workspace }}/.env
 
       - name: Store .env file in cache
         uses: actions/cache/save@v3
@@ -191,10 +191,6 @@ jobs:
           path: ${{ github.workspace }}/tenant-frontend.tar
           key: ${{ github.sha }}-tenant-frontend
 
-      - name: List files in workspace
-        run: |
-          ls -la ${{ github.workspace }}
-
       - name: Load Docker images from cache
         run: |
           cd ${{ github.workspace }}
@@ -211,6 +207,10 @@ jobs:
           cd ${{ github.workspace }}
           ./mre start --ci
           ./mre status
+
+      - name: Check if app is up and running
+        run: |
+          curl -sS http://localhost:8080/landlord/signin
 
       - name: Run tests
         run: |
